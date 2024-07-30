@@ -2,7 +2,7 @@ import "./index.css";
 import React, { useState } from "react";
 import RadioButton from "../../../Components/RadioButton";
 import Button from "../../../Components/Button";
-import { Box, MenuItem, Select, Stack, Typography } from "@mui/material";
+import { Box, ButtonGroup, Stack, Typography } from "@mui/material";
 import { useSelector, useDispatch } from "react-redux";
 import { monitorValidation } from "../../../Validation/validation";
 import { createMonitor } from "../../../Features/Monitors/monitorsSlice";
@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "@emotion/react";
 import WestRoundedIcon from "@mui/icons-material/WestRounded";
 import Field from "../../../Components/Inputs/Field";
+import Select from "../../../Components/Inputs/Select";
 
 const CreateMonitor = () => {
   const MS_PER_MINUTE = 60000;
@@ -84,14 +85,17 @@ const CreateMonitor = () => {
     //obj to submit
     let monitor = {
       url:
-        checks.type === "http"
-          ? "https://" + generalSettings.url
+        //preprending protocol for url
+        checks.type === "http" || checks.type === "https"
+          ? `${checks.type}://` + generalSettings.url
           : generalSettings.url,
       name:
         generalSettings.name === ""
           ? generalSettings.url
           : generalSettings.name,
-      ...checks,
+      //there is no separate monitor type for https since the operations for the two protocols are identical
+      //however the URL does need the correct prepend hence https is still being tracked but overwritten when prepping the monitor obj
+      type: checks.type === "https" ? "http" : checks.type,
     };
 
     const { error } = monitorValidation.validate(monitor, {
@@ -125,17 +129,16 @@ const CreateMonitor = () => {
 
   //select values
   // const ports = ["Port 1", "Port 2", "Port 3"];
-  const frequencies = [1, 2, 3, 4, 5];
+  const frequencies = [
+    { _id: 1, name: "1 minute" },
+    { _id: 2, name: "2 minutes" },
+    { _id: 3, name: "3 minutes" },
+    { _id: 4, name: "4 minutes" },
+    { _id: 5, name: "5 minutes" },
+  ];
 
   return (
-    <div
-      className="create-monitor"
-      style={{
-        maxWidth: "1200px",
-        padding: `${theme.content.pY} ${theme.content.pX}`,
-        backgroundColor: "var(--env-var-color-30)",
-      }}
-    >
+    <Box className="create-monitor">
       <Button
         level="tertiary"
         label="Back"
@@ -167,9 +170,14 @@ const CreateMonitor = () => {
           </Box>
           <Stack gap={theme.gap.xl}>
             <Field
-              type="url"
+              type={
+                checks.type === "http" || checks.type === "https"
+                  ? "url"
+                  : "text"
+              }
               id="monitor-url"
               label="URL to monitor"
+              https={checks.type === "https"}
               placeholder="google.com"
               value={generalSettings.url}
               onChange={(event) =>
@@ -199,15 +207,47 @@ const CreateMonitor = () => {
             </Typography>
           </Box>
           <Stack gap={theme.gap.large}>
-            <RadioButton
-              id="monitor-checks-http"
-              title="HTTP/website monitoring"
-              desc="Use HTTP(s) to monitor your website or API endpoint."
-              size="small"
-              value="http"
-              checked={checks.type === "http"}
-              onChange={(event) => handleChange(event, "type", setChecks)}
-            />
+            <Stack gap={theme.gap.medium}>
+              <RadioButton
+                id="monitor-checks-http"
+                title="Website monitoring"
+                desc="Use HTTP(s) to monitor your website or API endpoint."
+                size="small"
+                value="http"
+                checked={checks.type === "http" || checks.type === "https"}
+                onChange={(event) => handleChange(event, "type", setChecks)}
+              />
+              {checks.type === "http" || checks.type === "https" ? (
+                <ButtonGroup sx={{ ml: "32px" }}>
+                  <Button
+                    level="secondary"
+                    label="HTTP"
+                    onClick={() =>
+                      setChecks((prev) => ({ ...prev, type: "http" }))
+                    }
+                    sx={{
+                      backgroundColor:
+                        checks.type === "http" &&
+                        theme.palette.otherColors.fillGray,
+                    }}
+                  />
+                  <Button
+                    level="secondary"
+                    label="HTTPS"
+                    onClick={() =>
+                      setChecks((prev) => ({ ...prev, type: "https" }))
+                    }
+                    sx={{
+                      backgroundColor:
+                        checks.type === "https" &&
+                        theme.palette.otherColors.fillGray,
+                    }}
+                  />
+                </ButtonGroup>
+              ) : (
+                ""
+              )}
+            </Stack>
             <RadioButton
               id="monitor-checks-ping"
               title="Ping monitoring"
@@ -309,41 +349,15 @@ const CreateMonitor = () => {
             <Typography component="h2">Advanced settings</Typography>
           </Box>
           <Stack gap={theme.gap.large}>
-            {/* TODO - refactor select component */}
-            <Box>
-              <Typography component="p" mb={theme.gap.small}>
-                Check frequency
-              </Typography>
-              <Select
-                id="monitor-frequencies"
-                value={advancedSettings.interval || 1}
-                inputProps={{ id: "monitor-frequencies-select" }}
-                onChange={(event) =>
-                  handleChange(event, "interval", setAdvancedSettings)
-                }
-                MenuProps={{
-                  PaperProps: {
-                    style: {
-                      marginTop: "10px",
-                    },
-                  },
-                }}
-              >
-                {frequencies.map((freq) => (
-                  <MenuItem
-                    key={`port-${freq}`}
-                    value={freq}
-                    sx={{
-                      fontSize: "13px",
-                      borderRadius: `${theme.shape.borderRadius}px`,
-                      margin: "5px",
-                    }}
-                  >
-                    {freq} {freq === 1 ? "minute" : "minutes"}
-                  </MenuItem>
-                ))}
-              </Select>
-            </Box>
+            <Select
+              id="monitor-interval"
+              label="Check frequency"
+              value={advancedSettings.interval || 1}
+              onChange={(event) =>
+                handleChange(event, "interval", setAdvancedSettings)
+              }
+              items={frequencies}
+            />
             {/* TODO */}
             {/* <FlexibileTextField
               id="monitor-settings-retries"
@@ -421,7 +435,7 @@ const CreateMonitor = () => {
           />
         </Stack>
       </form>
-    </div>
+    </Box>
   );
 };
 

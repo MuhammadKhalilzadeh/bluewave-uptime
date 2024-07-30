@@ -13,52 +13,11 @@ import WestRoundedIcon from "@mui/icons-material/WestRounded";
 import GreenCheck from "../../../assets/icons/checkbox-green.svg?react";
 import RedCheck from "../../../assets/icons/checkbox-red.svg?react";
 import SettingsIcon from "../../../assets/icons/settings.svg?react";
+import {
+  formatDuration,
+  formatDurationRounded,
+} from "../../../Utils/timeUtils";
 import "./index.css";
-
-const formatDuration = (ms) => {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  let dateStr = "";
-
-  days && (dateStr += `${days}d `);
-  hours && (dateStr += `${hours % 24}h `);
-  minutes && (dateStr += `${minutes % 60}m `);
-  seconds && (dateStr += `${seconds % 60}s `);
-
-  dateStr === "" && (dateStr = "0s");
-
-  return dateStr;
-};
-
-const formatDurationRounded = (ms) => {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  let time = "";
-  if (days > 0) {
-    time += `${days} day${days !== 1 ? "s" : ""}`;
-    return time;
-  }
-  if (hours > 0) {
-    time += `${hours} hour${hours !== 1 ? "s" : ""}`;
-    return time;
-  }
-  if (minutes > 0) {
-    time += `${minutes} minute${minutes !== 1 ? "s" : ""}`;
-    return time;
-  }
-  if (seconds > 0) {
-    time += `${seconds} second${seconds !== 1 ? "s" : ""}`;
-    return time;
-  }
-
-  return time;
-};
 
 const StatBox = ({ title, value }) => {
   return (
@@ -82,11 +41,14 @@ const DetailsPage = () => {
 
   useEffect(() => {
     const fetchMonitor = async () => {
-      const res = await axiosInstance.get(`/monitors/${monitorId}`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const res = await axiosInstance.get(
+        `/monitors/${monitorId}?sortOrder=asc`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
       setMonitor(res.data.data);
       const data = {
         cols: [
@@ -95,32 +57,14 @@ const DetailsPage = () => {
           { id: 3, name: "Message" },
         ],
         rows: res.data.data.checks.map((check, idx) => {
-          const params = {
-            status: check.status === true ? "Up" : "Down",
-            backgroundColor:
-              check.status === true
-                ? "var(--env-var-color-20)"
-                : "var(--env-var-color-21)",
-            statusDotColor:
-              check.status === true
-                ? "var(--env-var-color-17)"
-                : "var(--env-var-color-19)",
-          };
+          const status = check.status === true ? "up" : "down";
 
           return {
             id: check._id,
             data: [
               {
                 id: idx,
-                data: (
-                  <StatusLabel
-                    status={params.status}
-                    dot={params.statusDotColor}
-                    customStyles={{
-                      backgroundColor: params.backgroundColor,
-                    }}
-                  />
-                ),
+                data: <StatusLabel status={status} text={status} />,
               },
               { id: idx + 1, data: new Date(check.createdAt).toLocaleString() },
               { id: idx + 2, data: check.statusCode },
@@ -199,13 +143,7 @@ const DetailsPage = () => {
   };
 
   return (
-    <div
-      className="monitor-details"
-      style={{
-        padding: `${theme.content.pY} ${theme.content.pX}`,
-        backgroundColor: "var(--env-var-color-30)",
-      }}
-    >
+    <Box className="monitor-details">
       <Button
         level="tertiary"
         label="Back to Monitors"
@@ -311,7 +249,7 @@ const DetailsPage = () => {
           <BasicTable data={data} paginated={true} reversed={true} />
         </Box>
       </Stack>
-    </div>
+    </Box>
   );
 };
 

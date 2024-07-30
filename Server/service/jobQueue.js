@@ -59,6 +59,8 @@ class JobQueue {
       QUEUE_NAME,
       async (job) => {
         try {
+          // TODO wrap this in a check to see if a maintenace window is active
+          // If so, don't process the job
           const res = await this.networkService.getStatus(job);
         } catch (error) {
           logger.error(`Error processing job ${job.id}: ${error.message}`, {
@@ -231,9 +233,12 @@ class JobQueue {
     try {
       const jobs = await this.getJobs();
       for (const job of jobs) {
+        await this.queue.removeRepeatableByKey(job.key);
         await this.queue.remove(job.id);
       }
-      console.log(jobs);
+      this.workers.forEach(async (worker) => {
+        await worker.close();
+      });
       await this.queue.obliterate();
       logger.info(successMessages.JOB_QUEUE_OBLITERATE, {
         service: SERVICE_NAME,

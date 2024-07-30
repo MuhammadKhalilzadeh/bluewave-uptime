@@ -118,12 +118,30 @@ const inviteVerifciationBodyValidation = joi.object({
 // Monitors
 //****************************************
 
-const getMonitorByIdValidation = joi.object({
+const getMonitorByIdParamValidation = joi.object({
   monitorId: joi.string().required(),
+});
+
+const getMonitorByIdQueryValidation = joi.object({
+  status: joi.boolean(),
+  sortOrder: joi.string().valid("asc", "desc"),
+  limit: joi.number(),
 });
 
 const getMonitorsByUserIdValidation = joi.object({
   userId: joi.string().required(),
+});
+
+const getMonitorsByUserIdQueryValidation = joi.object({
+  status: joi.boolean(),
+  sortOrder: joi.string().valid("asc", "desc"),
+  limit: joi.number(),
+  type: joi
+    .alternatives()
+    .try(
+      joi.string().valid("http", "ping", "pagespeed"),
+      joi.array().items(joi.string().valid("http", "ping", "pagespeed"))
+    ),
 });
 
 const monitorValidation = joi.object({
@@ -134,6 +152,12 @@ const monitorValidation = joi.object({
   type: joi.string().required(),
   url: joi.string().required(),
   isActive: joi.boolean(),
+  interval: joi.number(),
+});
+
+const editMonitorBodyValidation = joi.object({
+  name: joi.string(),
+  description: joi.string(),
   interval: joi.number(),
 });
 
@@ -221,11 +245,7 @@ const createPageSpeedCheckParamValidation = joi.object({
 
 //Validation schema for the monitorId body
 const createPageSpeedCheckBodyValidation = joi.object({
-  monitorId: joi.string().required(),
-  accessibility: joi.number().required().min(0).max(100),
-  bestPractices: joi.number().required().min(0).max(100),
-  seo: joi.number().required().min(0).max(100),
-  performance: joi.number().required().min(0).max(100),
+  url: joi.string().required(),
 });
 
 const deletePageSpeedCheckParamValidation = joi.object({
@@ -242,9 +262,12 @@ module.exports = {
   inviteRoleValidation,
   inviteBodyValidation,
   inviteVerifciationBodyValidation,
-  getMonitorByIdValidation,
-  getMonitorsByUserIdValidation,
   monitorValidation,
+  getMonitorByIdParamValidation,
+  getMonitorByIdQueryValidation,
+  getMonitorsByUserIdValidation,
+  getMonitorsByUserIdQueryValidation,
+  editMonitorBodyValidation,
   editUserParamValidation,
   editUserBodyValidation,
   createAlertParamValidation,

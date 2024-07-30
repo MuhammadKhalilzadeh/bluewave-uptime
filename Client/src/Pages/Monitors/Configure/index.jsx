@@ -5,42 +5,16 @@ import { useEffect, useState } from "react";
 import Button from "../../../Components/Button";
 import Field from "../../../Components/Inputs/Field";
 import RadioButton from "../../../Components/RadioButton";
-import { Box, MenuItem, Select, Stack, Typography } from "@mui/material";
+import { Box, MenuItem, Stack, Typography } from "@mui/material";
 import WestRoundedIcon from "@mui/icons-material/WestRounded";
 import GreenCheck from "../../../assets/icons/checkbox-green.svg?react";
 import RedCheck from "../../../assets/icons/checkbox-red.svg?react";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 import "./index.css";
 import { monitorValidation } from "../../../Validation/validation";
-
-const formatDurationRounded = (ms) => {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  let time = "";
-  if (days > 0) {
-    time += `${days} day${days !== 1 ? "s" : ""}`;
-    return time;
-  }
-  if (hours > 0) {
-    time += `${hours} hour${hours !== 1 ? "s" : ""}`;
-    return time;
-  }
-  if (minutes > 0) {
-    time += `${minutes} minute${minutes !== 1 ? "s" : ""}`;
-    return time;
-  }
-  if (seconds > 0) {
-    time += `${seconds} second${seconds !== 1 ? "s" : ""}`;
-    return time;
-  }
-
-  return time;
-};
+import Select from "../../../Components/Inputs/Select";
+import { formatDurationRounded } from "../../../Utils/timeUtils";
 
 /**
  * Helper function to get duration since last check
@@ -119,17 +93,16 @@ const Configure = () => {
     // TODO
   };
 
-  const frequencies = [1, 2, 3, 4, 5];
+  const frequencies = [
+    { _id: 1, name: "1 minute" },
+    { _id: 2, name: "2 minutes" },
+    { _id: 3, name: "3 minutes" },
+    { _id: 4, name: "4 minutes" },
+    { _id: 5, name: "5 minutes" },
+  ];
 
   return (
-    <div
-      className="configure-monitor"
-      style={{
-        maxWidth: "1200px",
-        padding: `${theme.content.pY} ${theme.content.pX}`,
-        backgroundColor: "var(--env-var-color-30)",
-      }}
-    >
+    <Box className="configure-monitor">
       <Button
         level="tertiary"
         label="Back"
@@ -285,47 +258,20 @@ const Configure = () => {
             <Typography component="h2">Advanced settings</Typography>
           </Box>
           <Stack gap={theme.gap.xl}>
-            <Box>
-              <Typography component="p" mb={theme.gap.small}>
-                Check frequency
-              </Typography>
-              <Select
-                id="monitor-interval"
-                value={monitor?.interval || 1}
-                inputProps={{ id: "monitor-interval-select" }}
-                MenuProps={{
-                  PaperProps: {
-                    style: {
-                      marginTop: "10px",
-                    },
-                  },
-                }}
-                IconComponent={KeyboardArrowDownIcon}
-                onChange={(event) => handleChange(event, "interval")}
-              >
-                {frequencies.map((freq) => (
-                  <MenuItem
-                    key={`port-${freq}`}
-                    value={freq}
-                    disableRipple
-                    sx={{
-                      fontSize: "13px",
-                      borderRadius: `${theme.shape.borderRadius}px`,
-                      margin: theme.gap.xs,
-                    }}
-                  >
-                    {freq} {freq === 1 ? "minute" : "minutes"}
-                  </MenuItem>
-                ))}
-              </Select>
-            </Box>
+            <Select
+              id="monitor-interval-configure"
+              label="Check frequency"
+              value={monitor?.interval || 1}
+              onChange={(event) => handleChange(event, "interval")}
+              items={frequencies}
+            />
           </Stack>
         </Stack>
         <Stack direction="row" justifyContent="flex-end">
           <Button level="primary" label="Save" sx={{ px: theme.gap.ml }} />
         </Stack>
       </form>
-    </div>
+    </Box>
   );
 };
 

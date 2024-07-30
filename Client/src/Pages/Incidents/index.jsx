@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import {
-  Select,
-  MenuItem,
-  Typography,
-  ButtonGroup,
-  Stack,
-} from "@mui/material";
+import { Typography, ButtonGroup, Stack } from "@mui/material";
 
 import Button from "../../Components/Button";
 import axiosInstance from "../../Utils/axiosConfig";
@@ -15,6 +9,7 @@ import { StatusLabel } from "../../Components/Label";
 import { useTheme } from "@emotion/react";
 
 import "./index.css";
+import Select from "../../Components/Inputs/Select";
 
 const Incidents = () => {
   const theme = useTheme();
@@ -38,7 +33,7 @@ const Incidents = () => {
   useEffect(() => {
     const fetchIncidents = async () => {
       const res = await axiosInstance.get(
-        `/monitors/incidents/user/${authState.user._id}`,
+        `/monitors/user/${authState.user._id}?status=false`,
         {
           headers: {
             Authorization: `Bearer ${authState.authToken}`,
@@ -81,24 +76,12 @@ const Incidents = () => {
       else if (filter === "down") return incident.status === false;
     })
     .map((incident, idx) => {
-      const params = {
-        status: "Down",
-        backgroundColor: "var(--env-var-color-21)",
-        statusDotColor: "var(--env-var-color-19)",
-      };
-
       return {
         id: idx,
         data: [
           {
             id: idx + 0,
-            data: (
-              <StatusLabel
-                status={params.status}
-                dot={params.statusDotColor}
-                customStyles={{ backgroundColor: params.backgroundColor }}
-              />
-            ),
+            data: <StatusLabel status="down" text="Down" />,
           },
           { id: idx + 1, data: new Date(incident.createdAt).toLocaleString() },
           { id: idx + 2, data: incident.statusCode },
@@ -109,25 +92,16 @@ const Incidents = () => {
   data.rows = incidents;
 
   return (
-    <Stack
-      className="incidents"
-      gap={theme.gap.large}
-      style={{
-        padding: `${theme.content.pY} ${theme.content.pX}`,
-      }}
-    >
+    <Stack className="incidents" gap={theme.gap.large}>
       <Stack direction="row" alignItems="center" gap={theme.gap.medium}>
         <Typography component="h1">Incident history for: </Typography>
-        <Select value={selectedMonitor} onChange={handleSelect}>
-          <MenuItem value={"0"}>All servers</MenuItem>
-          {Object.values(monitors).map((monitor) => {
-            return (
-              <MenuItem key={monitor._id} value={monitor._id}>
-                {monitor.name}
-              </MenuItem>
-            );
-          })}
-        </Select>
+        <Select
+          id="incidents-select-monitor"
+          placeholder="All servers"
+          value={selectedMonitor}
+          onChange={handleSelect}
+          items={Object.values(monitors)}
+        />
         <ButtonGroup sx={{ ml: "auto" }}>
           <Button
             level="secondary"
@@ -158,7 +132,7 @@ const Incidents = () => {
           />
         </ButtonGroup>
       </Stack>
-      <BasicTable data={data} paginated={true} rowsPerPage={12}/>
+      <BasicTable data={data} paginated={true} rowsPerPage={12} />
     </Stack>
   );
 };

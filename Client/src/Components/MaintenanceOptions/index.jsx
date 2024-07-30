@@ -1,72 +1,64 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import "./index.css";
-import React from "react";
+import React, { useState } from "react";
 import Close from "../../assets/icons/close.svg?react";
-import ComboBox from "../ComboBox";
-import Datepicker from "../DatePicker";
-import Timepicker from "../TimePicker";
-import Duration from "../Duration";
-import Field from "../Inputs/Field";
-import Button from "../Button";
+import Select from "../Inputs/Select";
 
-export const MaintenanceOptions = () => {
+const directory = {
+  title: "Create a maintenance window",
+  description: "Your pings won’t be sent in this time frame.",
+};
+
+const repeatOptions = [
+  { name: "Don't repeat", _id: 1 },
+  { name: "Repeat daily", _id: 2 },
+  { name: "Repeat weekly", _id: 3 },
+];
+
+const MaintenanceOptions = () => {
+  const [values, setValues] = useState({
+    repeat: "",
+  });
+
+  const handleChange = (event) => {
+    setValues({
+      ...values,
+      [event.target.name]: event.target.value,
+    });
+    console.log(values);
+  };
+
   return (
-    <Box
-      width={347}
-      paddingY={3}
-      paddingX={4}
-      boxShadow="0 8px 8px -4px #10182830;"
-      borderRadius="4px"
-    >
-      <div className="box-header">
-        <div className="box-header-text">
+    <div style={{ width: 420 }} className="maintenance-options">
+      <Box display="grid" gap={3} paddingY={3} paddingX={4}>
+        <Stack position="relative">
+          <Close alt="Close Icon" />
           <Typography
-            style={{
+            sx={{
               fontSize: "var(--env-var-font-size-large)",
               fontWeight: "600",
               color: "var(--env-var-color-5)",
             }}
           >
-            Create a maintenance window
+            {directory.title}
           </Typography>
-          <Typography style={{ fontSize: "var(--env-var-font-size-medium)" }}>
-            Your pings won’t be sent in this time frame.
+
+          <Typography sx={{ fontSize: "var(--env-var-font-size-medium)" }}>
+            {directory.description}
           </Typography>
-        </div>
-        <Close id="box-close-icon" alt="Close Icon" />
-      </div>
-      <ComboBox subject="Repeat" />
-      <Datepicker title="Date" />
-      <Timepicker title="Start time" />
-      <Duration title="Duration" />
-      <Field
-        id="friendly-name"
-        value=""
-        onChange={() => console.log("Friendly name")}
-        label="Friendly name"
-        placeholder="Maintanence at __ : __ for ___ minutes"
-      />
-      <Field
-        id="add-monitor"
-        value=""
-        onChange={() => console.log("Add monitors")}
-        label="Add monitors"
-        placeholder="Start typing to search for current monitors"
-      />
-      <div className="box-actions">
-        <Button
-          level="tertiary"
-          label="Cancel"
-          sx={{ width: "108px", height: "34px" }}
-          onClick={() => console.log("Cancel")}
-        />
-        <Button
-          level="primary"
-          label="Create"
-          sx={{ width: "108px", height: "34px" }}
-          onClick={() => console.log("Create")}
-        />
-      </div>
-    </Box>
+        </Stack>
+        <Stack className="maintenance-options-repeats">
+          <Select
+            onChange={(e) => handleChange(e)}
+            label="Repeat"
+            id="repeat-mode"
+            items={repeatOptions}
+            value={values.repeat}
+          />
+        </Stack>
+      </Box>
+    </div>
   );
 };
+
+export default MaintenanceOptions;
