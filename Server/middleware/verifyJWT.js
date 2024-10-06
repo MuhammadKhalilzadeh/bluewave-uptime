@@ -4,7 +4,7 @@ const SERVICE_NAME = "verifyJWT";
 const TOKEN_PREFIX = "Bearer ";
 const { errorMessages } = require("../utils/messages");
 const { parse } = require("path");
-const User = require("../models/user");
+const User = require("../db/models/User");
 /**
  * Verifies the JWT token
  * @function
@@ -28,13 +28,15 @@ const verifyJWT = (req, res, next) => {
     const error = new Error(errorMessages.INVALID_AUTH_TOKEN); // Instantiate a new Error object for improperly formatted token
     error.status = 400;
     error.service = SERVICE_NAME;
+    error.method = "verifyJWT";
     next(error);
     return;
   }
 
   const parsedToken = token.slice(TOKEN_PREFIX.length, token.length);
   // Verify the token's authenticity
-  jwt.verify(parsedToken, process.env.JWT_SECRET, (err, decoded) => {
+  const { jwtSecret } = req.settingsService.getSettings();
+  jwt.verify(parsedToken, jwtSecret, (err, decoded) => {
     if (err) {
       return res
         .status(401)

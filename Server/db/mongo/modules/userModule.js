@@ -1,10 +1,11 @@
-const UserModel = require("../../../models/user");
-const TeamModel = require("../../../models/Team");
+const UserModel = require("../../models/User");
+const TeamModel = require("../../models/Team");
 const { errorMessages } = require("../../../utils/messages");
 const { GenerateAvatarImage } = require("../../../utils/imageProcessing");
 
 const DUPLICATE_KEY_CODE = 11000; // MongoDB error code for duplicate key
 const { ParseBoolean } = require("../../../utils/utils");
+SERVICE_NAME = "userModule";
 
 /**
  * Insert a User
@@ -34,6 +35,7 @@ const insertUser = async (userData, imageFile) => {
         email: userData.email,
       });
       userData.teamId = team._id;
+      userData.checkTTL = 60 * 60 * 24 * 30;
       await team.save();
     }
 
@@ -44,8 +46,10 @@ const insertUser = async (userData, imageFile) => {
       .select("-profileImage"); // .select() doesn't work with create, need to save then find
   } catch (error) {
     if (error.code === DUPLICATE_KEY_CODE) {
-      throw new Error(errorMessages.DB_USER_EXISTS);
+      error.message = errorMessages.DB_USER_EXISTS;
     }
+    error.service = SERVICE_NAME;
+    error.method = "insertUser";
     throw error;
   }
 };
@@ -74,6 +78,8 @@ const getUserByEmail = async (email) => {
       throw new Error(errorMessages.DB_USER_NOT_FOUND);
     }
   } catch (error) {
+    error.service = SERVICE_NAME;
+    error.method = "getUserByEmail";
     throw error;
   }
 };
@@ -123,6 +129,8 @@ const updateUser = async (req, res) => {
       .select("-profileImage");
     return updatedUser;
   } catch (error) {
+    error.service = SERVICE_NAME;
+    error.method = "updateUser";
     throw error;
   }
 };
@@ -143,6 +151,35 @@ const deleteUser = async (userId) => {
     }
     return deletedUser;
   } catch (error) {
+    error.service = SERVICE_NAME;
+    error.method = "deleteUser";
+    throw error;
+  }
+};
+
+/**
+ * Delete a user by ID
+ * @async
+ * @param {string} teamId
+ * @returns {void}
+ * @throws {Error}
+ */
+const deleteTeam = async (teamId) => {
+  try {
+    await TeamModel.findByIdAndDelete(teamId);
+  } catch (error) {
+    error.service = SERVICE_NAME;
+    error.method = "deleteTeam";
+    throw error;
+  }
+};
+
+const deleteAllOtherUsers = async () => {
+  try {
+    await UserModel.deleteMany({ role: { $ne: "superadmin" } });
+  } catch (error) {
+    error.service = SERVICE_NAME;
+    error.method = "deleteAllOtherUsers";
     throw error;
   }
 };
@@ -154,6 +191,8 @@ const getAllUsers = async (req, res) => {
       .select("-profileImage");
     return users;
   } catch (error) {
+    error.service = SERVICE_NAME;
+    error.method = "getAllUsers";
     throw error;
   }
 };
@@ -163,6 +202,8 @@ const logoutUser = async (userId) => {
     await UserModel.updateOne({ _id: userId }, { $unset: { authToken: null } });
     return true;
   } catch (error) {
+    error.service = SERVICE_NAME;
+    error.method = "logoutUser";
     throw error;
   }
 };
@@ -172,6 +213,8 @@ module.exports = {
   getUserByEmail,
   updateUser,
   deleteUser,
+  deleteTeam,
+  deleteAllOtherUsers,
   getAllUsers,
   logoutUser,
 };

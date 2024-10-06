@@ -19,13 +19,14 @@ import SetNewPassword from "./Pages/Auth/SetNewPassword";
 import NewPasswordConfirmed from "./Pages/Auth/NewPasswordConfirmed";
 import ProtectedRoute from "./Components/ProtectedRoute";
 import Details from "./Pages/Monitors/Details";
-import Maintenance from "./Pages/Maintenance";
+import AdvancedSettings from "./Pages/AdvancedSettings";
+// import Maintenance from "./Pages/Maintenance";
 import withAdminCheck from "./HOC/withAdminCheck";
 import withAdminProp from "./HOC/withAdminProp";
 import Configure from "./Pages/Monitors/Configure";
 import PageSpeed from "./Pages/PageSpeed";
 import CreatePageSpeed from "./Pages/PageSpeed/CreatePageSpeed";
-import CreateNewMaintenanceWindow from "./Pages/Maintenance/CreateMaintenanceWindow";
+// import CreateNewMaintenanceWindow from "./Pages/Maintenance/CreateMaintenanceWindow";
 import PageSpeedDetails from "./Pages/PageSpeed/Details";
 import PageSpeedConfigure from "./Pages/PageSpeed/Configure";
 import { ThemeProvider } from "@emotion/react";
@@ -33,16 +34,37 @@ import lightTheme from "./Utils/Theme/lightTheme";
 import darkTheme from "./Utils/Theme/darkTheme";
 import { useSelector } from "react-redux";
 import { CssBaseline } from "@mui/material";
-
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { getAppSettings } from "./Features/Settings/settingsSlice";
+import { logger } from "./Utils/Logger"; // Import the logger
+import { networkService } from "./main";
 function App() {
   const AdminCheckedRegister = withAdminCheck(Register);
   const MonitorsWithAdminProp = withAdminProp(Monitors);
-  const DetailsWithAdminProp = withAdminProp(Details);
+  const MonitorDetailsWithAdminProp = withAdminProp(Details);
   const PageSpeedWithAdminProp = withAdminProp(PageSpeed);
-  const MaintenanceWithAdminProp = withAdminProp(Maintenance);
+  const PageSpeedDetailsWithAdminProp = withAdminProp(PageSpeedDetails);
+  // const MaintenanceWithAdminProp = withAdminProp(Maintenance);
   const SettingsWithAdminProp = withAdminProp(Settings);
-
+  const AdvancedSettingsWithAdminProp = withAdminProp(AdvancedSettings);
   const mode = useSelector((state) => state.ui.mode);
+  const { authToken } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (authToken) {
+      dispatch(getAppSettings({ authToken }));
+    }
+  }, [dispatch, authToken]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      logger.cleanup();
+      networkService.cleanup();
+    };
+  }, []);
 
   return (
     <ThemeProvider theme={mode === "light" ? lightTheme : darkTheme}>
@@ -64,14 +86,14 @@ function App() {
           />
           <Route
             path="/monitors/:monitorId/"
-            element={<ProtectedRoute Component={DetailsWithAdminProp} />}
+            element={<ProtectedRoute Component={MonitorDetailsWithAdminProp} />}
           />
           <Route
             path="/monitors/configure/:monitorId/"
             element={<ProtectedRoute Component={Configure} />}
           />
           <Route
-            path="incidents"
+            path="incidents/:monitorId?"
             element={<ProtectedRoute Component={Incidents} />}
           />
 
@@ -83,17 +105,23 @@ function App() {
             path="integrations"
             element={<ProtectedRoute Component={Integrations} />}
           />
-          <Route
+          {/* <Route
             path="maintenance"
             element={<ProtectedRoute Component={MaintenanceWithAdminProp} />}
-          />
-          <Route
+          /> */}
+          {/* <Route
             path="/maintenance/create"
             element={<CreateNewMaintenanceWindow />}
-          />
+          /> */}
           <Route
             path="settings"
             element={<ProtectedRoute Component={SettingsWithAdminProp} />}
+          />
+          <Route
+            path="advanced-settings"
+            element={
+              <ProtectedRoute Component={AdvancedSettingsWithAdminProp} />
+            }
           />
           <Route
             path="account/profile"
@@ -117,7 +145,9 @@ function App() {
           />
           <Route
             path="pagespeed/:monitorId"
-            element={<ProtectedRoute Component={PageSpeedDetails} />}
+            element={
+              <ProtectedRoute Component={PageSpeedDetailsWithAdminProp} />
+            }
           />
           <Route
             path="pagespeed/configure/:monitorId"

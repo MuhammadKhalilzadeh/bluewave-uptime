@@ -11,18 +11,21 @@ const {
   getMonitorStatsByIdParamValidation,
   getMonitorStatsByIdQueryValidation,
   getCertificateParamValidation,
-  getMonitorAggregateStatsParamValidation,
-  getMonitorAggregateStatsQueryValidation,
 } = require("../validation/joi");
 
 const sslChecker = require("ssl-checker");
 const SERVICE_NAME = "monitorController";
 const { errorMessages, successMessages } = require("../utils/messages");
+const jwt = require("jsonwebtoken");
+const { getTokenFromHeaders } = require("../utils/utils");
+const logger = require("../utils/logger");
+
 /**
  * Returns all monitors
  * @async
  * @param {Express.Request} req
  * @param {Express.Response} res
+ * @param {function} next
  * @returns {Promise<Express.Response>}
  * @throws {Error}
  */
@@ -35,45 +38,8 @@ const getAllMonitors = async (req, res, next) => {
       data: monitors,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
-    next(error);
-  }
-};
-
-/**
- * Returns agregate stats for a monitor
- * @async
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @returns {Promise<Express.Response>}
- * @throws {Error}
- */
-
-const getMonitorAggregateStats = async (req, res, next) => {
-  try {
-    await getMonitorAggregateStatsParamValidation.validateAsync(req.params);
-    await getMonitorAggregateStatsQueryValidation.validateAsync(req.query);
-  } catch (error) {
-    error.status = 422;
-    error.message =
-      error.details?.[0]?.message || error.message || "Validation Error";
-    next(error);
-    return;
-  }
-
-  try {
-    const { monitorId } = req.params;
-    const dateRange = req.query.dateRange;
-    const aggregateStats = await req.db.getMonitorAggregateStats(
-      monitorId,
-      dateRange
-    );
-    return res.json({
-      success: true,
-      msg: successMessages.MONTIOR_STATS_BY_ID,
-      data: aggregateStats,
-    });
-  } catch (error) {
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "getAllMonitors") : null;
     next(error);
   }
 };
@@ -83,6 +49,7 @@ const getMonitorAggregateStats = async (req, res, next) => {
  * @async
  * @param {Express.Request} req
  * @param {Express.Response} res
+ * @param {function} next
  * @returns {Promise<Express.Response>}
  * @throws {Error}
  */
@@ -102,11 +69,12 @@ const getMonitorStatsById = async (req, res, next) => {
     const monitorStats = await req.db.getMonitorStatsById(req);
     return res.json({
       success: true,
-      msg: successMessages.MONTIOR_STATS_BY_ID,
+      msg: successMessages.MONITOR_STATS_BY_ID,
       data: monitorStats,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "getMonitorStatsById") : null;
     next(error);
   }
 };
@@ -142,18 +110,24 @@ const getMonitorCertificate = async (req, res, next) => {
       });
     }
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined
+      ? (error.method = "getMonitorCertificate")
+      : null;
     next(error);
   }
 };
 
 /**
- * Returns monitor with matching ID
+ * Retrieves a monitor by its ID.
  * @async
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @returns {Promise<Express.Response>}
- * @throws {Error}
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.params - The parameters of the request.
+ * @property {string} req.params.monitorId - The ID of the monitor to be retrieved.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status, a message, and the retrieved monitor data.
+ * @throws {Error} If there is an error during the process, especially if the monitor is not found (404) or if there is a validation error (422).
  */
 const getMonitorById = async (req, res, next) => {
   try {
@@ -172,29 +146,33 @@ const getMonitorById = async (req, res, next) => {
     if (!monitor) {
       const error = new Error(errorMessages.MONITOR_GET_BY_ID);
       error.status = 404;
-      throw error;
     }
 
     return res.json({
       success: true,
-      msg: successMessages.MONTIOR_GET_BY_ID,
+      msg: successMessages.MONITOR_GET_BY_ID,
       data: monitor,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "getMonitorById") : null;
     next(error);
   }
 };
 
 /**
- * Returns all monitors and a sumamry for a team with TeamID
+ * Retrieves all monitors and a summary for a team based on the team ID.
  * @async
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @returns {Promise<Express.Response>}
- * @throws {Error}
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.params - The parameters of the request.
+ * @property {string} req.params.teamId - The ID of the team.
+ * @property {Object} req.query - The query parameters of the request.
+ * @property {string} req.query.type - The type of the request.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status, a message, and the data containing the monitors and summary for the team.
+ * @throws {Error} If there is an error during the process, especially if there is a validation error (422).
  */
-
 const getMonitorsAndSummaryByTeamId = async (req, res, next) => {
   try {
     await getMonitorsAndSummaryByTeamIdParamValidation.validateAsync(
@@ -205,8 +183,7 @@ const getMonitorsAndSummaryByTeamId = async (req, res, next) => {
   } catch (error) {
     error.status = 422;
     error.service = SERVICE_NAME;
-    error.method === undefined &&
-      error.method === "getMonitorsAndSummaryByTeamId";
+    error.method === undefined? error.method = "getMonitorsAndSummaryByTeamId": null;
     error.message =
       error.details?.[0]?.message || error.message || "Validation Error";
     next(error);
@@ -226,20 +203,25 @@ const getMonitorsAndSummaryByTeamId = async (req, res, next) => {
       data: monitorsSummary,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
-    error.method === undefined &&
-      error.method === "getMonitorsAndSummaryByTeamId";
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined
+      ? (error.method = "getMonitorsAndSummaryByTeamId")
+      : null;
     next(error);
   }
 };
 
 /**
- * Returns all monitors belong to team with TeamID
+ * Retrieves all monitors associated with a team by the team's ID.
  * @async
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @returns {Promise<Express.Response>}
- * @throws {Error}
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.params - The parameters of the request.
+ * @property {string} req.params.teamId - The ID of the team.
+ * @property {Object} req.query - The query parameters of the request.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status, a message, and the data containing the monitors for the team.
+ * @throws {Error} If there is an error during the process, especially if there is a validation error (422).
  */
 const getMonitorsByTeamId = async (req, res, next) => {
   try {
@@ -257,27 +239,29 @@ const getMonitorsByTeamId = async (req, res, next) => {
   try {
     const teamId = req.params.teamId;
     const monitors = await req.db.getMonitorsByTeamId(req, res);
-
     return res.json({
       success: true,
       msg: successMessages.MONITOR_GET_BY_USER_ID(teamId),
       data: monitors,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "getMonitorsByTeamId") : null;
     next(error);
   }
 };
 
 /**
- * Creates a new monitor
+ * Creates a new monitor and adds it to the job queue.
  * @async
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @returns {Promise<Express.Response>}
- * @throws {Error}
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.body - The body of the request.
+ * @property {Array} req.body.notifications - The notifications associated with the monitor.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status, a message indicating the creation of the monitor, and the created monitor data.
+ * @throws {Error} If there is an error during the process, especially if there is a validation error (422).
  */
-
 const createMonitor = async (req, res, next) => {
   try {
     await createMonitorBodyValidation.validateAsync(req.body);
@@ -296,13 +280,12 @@ const createMonitor = async (req, res, next) => {
     const monitor = await req.db.createMonitor(req, res);
 
     if (notifications && notifications.length !== 0) {
-      const setNotifications = await Promise.all(
-        notifications.map(async (notification) => {
-          notification.monitorId = monitor._id;
-          await req.db.createNotification(notification);
-        })
+      monitor.notifications = await Promise.all(
+          notifications.map(async (notification) => {
+            notification.monitorId = monitor._id;
+            await req.db.createNotification(notification);
+          })
       );
-      monitor.notifications = setNotifications;
       await monitor.save();
     }
     // Add monitor to job queue
@@ -313,20 +296,23 @@ const createMonitor = async (req, res, next) => {
       data: monitor,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "createMonitor") : null;
     next(error);
   }
 };
 
 /**
- * Delete a monitor by ID
+ * Deletes a monitor by its ID and also deletes associated checks, alerts, and notifications.
  * @async
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @returns {Promise<Express.Response>}
- * @throws {Error}
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.params - The parameters of the request.
+ * @property {string} req.params.monitorId - The ID of the monitor to be deleted.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status and a message indicating the deletion of the monitor.
+ * @throws {Error} If there is an error during the process, especially if there is a validation error (422) or an error in deleting associated records.
  */
-
 const deleteMonitor = async (req, res, next) => {
   try {
     await getMonitorByIdParamValidation.validateAsync(req.params);
@@ -342,46 +328,78 @@ const deleteMonitor = async (req, res, next) => {
   try {
     const monitor = await req.db.deleteMonitor(req, res, next);
     // Delete associated checks,alerts,and notifications
-    await req.jobQueue.deleteJob(monitor);
-    await req.db.deleteChecks(monitor._id);
-    await req.db.deleteAlertByMonitorId(monitor._id);
-    await req.db.deletePageSpeedChecksByMonitorId(monitor._id);
-    await req.db.deleteNotificationsByMonitorId(monitor._id);
-
-    /**
-     * TODO
-     * We should remove all checks and alerts associated with this monitor
-     * when it is deleted so there is no orphaned data
-     * We also need to make sure to stop all running services for this monitor
-     */
+    try {
+      await req.jobQueue.deleteJob(monitor);
+      await req.db.deleteChecks(monitor._id);
+      await req.db.deletePageSpeedChecksByMonitorId(monitor._id);
+      await req.db.deleteNotificationsByMonitorId(monitor._id);
+    } catch (error) {
+      logger.error(
+        `Error deleting associated records for monitor ${monitor._id} with name ${monitor.name}`,
+        {
+          method: "deleteMonitor",
+          service: SERVICE_NAME,
+          error: error.message,
+        }
+      );
+    }
     return res
       .status(200)
       .json({ success: true, msg: successMessages.MONITOR_DELETE });
   } catch (error) {
-    error.service = SERVICE_NAME;
-    next(error);
-  }
-};
-
-const deleteAllMonitors = async (req, res) => {
-  try {
-    const deleteCount = await req.db.deleteAllMonitors();
-    return res
-      .status(200)
-      .json({ success: true, msg: `Deleted ${deleteCount} monitors` });
-  } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "deleteMonitor") : null;
     next(error);
   }
 };
 
 /**
- * Edit a monitor by ID
+ * Deletes all monitors associated with a team.
  * @async
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @returns {Promise<Express.Response>}
- * @throws {Error}
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.headers - The headers of the request.
+ * @property {string} req.headers.authorization - The authorization header containing the JWT token.
+ * @param {Object} res - The Express response object.
+ * @param {function} next
+ * @returns {Object} The response object with a success status and a message indicating the number of deleted monitors.
+ * @throws {Error} If there is an error during the deletion process.
+ */
+const deleteAllMonitors = async (req, res, next) => {
+  try {
+    const token = getTokenFromHeaders(req.headers);
+    const { jwtSecret } = req.settingsService.getSettings();
+    const { teamId } = jwt.verify(token, jwtSecret);
+    const { monitors, deletedCount } = await req.db.deleteAllMonitors(teamId);
+    await monitors.forEach(async (monitor) => {
+      await req.jobQueue.deleteJob(monitor);
+      await req.db.deleteChecks(monitor._id);
+      await req.db.deleteAlertByMonitorId(monitor._id);
+      await req.db.deletePageSpeedChecksByMonitorId(monitor._id);
+      await req.db.deleteNotificationsByMonitorId(monitor._id);
+    });
+
+    return res
+      .status(200)
+      .json({ success: true, msg: `Deleted ${deletedCount} monitors` });
+  } catch (error) {
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "deleteAllMonitors") : null;
+    next(error);
+  }
+};
+
+/**
+ * Edits a monitor by its ID, updates its notifications, and updates its job in the job queue.
+ * @async
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.params - The parameters of the request.
+ * @property {string} req.params.monitorId - The ID of the monitor to be edited.
+ * @property {Object} req.body - The body of the request.
+ * @property {Array} req.body.notifications - The notifications to be associated with the monitor.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status, a message indicating the editing of the monitor, and the edited monitor data.
+ * @throws {Error} If there is an error during the process, especially if there is a validation error (422).
  */
 const editMonitor = async (req, res, next) => {
   try {
@@ -426,11 +444,23 @@ const editMonitor = async (req, res, next) => {
       data: editedMonitor,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "editMonitor") : null;
     next(error);
   }
 };
 
+/**
+ * Pauses or resumes a monitor based on its current state.
+ * @async
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.params - The parameters of the request.
+ * @property {string} req.params.monitorId - The ID of the monitor to be paused or resumed.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status, a message indicating the new state of the monitor, and the updated monitor data.
+ * @throws {Error} If there is an error during the process.
+ */
 const pauseMonitor = async (req, res, next) => {
   try {
     await pauseMonitorParamValidation.validateAsync(req.params);
@@ -460,15 +490,47 @@ const pauseMonitor = async (req, res, next) => {
       data: monitor,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
-    error.method = "pauseMonitor";
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "pauseMonitor") : null;
+    next(error);
+  }
+};
+
+/**
+ * Adds demo monitors for a team.
+ * @async
+ * @param {Object} req - The Express request object.
+ * @property {Object} req.headers - The headers of the request.
+ * @property {string} req.headers.authorization - The authorization header containing the JWT token.
+ * @param {Object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Object} The response object with a success status, a message indicating the addition of demo monitors, and the number of demo monitors added.
+ * @throws {Error} If there is an error during the process.
+ */
+const addDemoMonitors = async (req, res, next) => {
+  try {
+    const token = getTokenFromHeaders(req.headers);
+    const { jwtSecret } = req.settingsService.getSettings();
+
+    const { _id, teamId } = jwt.verify(token, jwtSecret);
+    const demoMonitors = await req.db.addDemoMonitors(_id, teamId);
+    await demoMonitors.forEach(async (monitor) => {
+      await req.jobQueue.addJob(monitor._id, monitor);
+    });
+    return res.status(200).json({
+      success: true,
+      message: successMessages.MONITOR_DEMO_ADDED,
+      data: demoMonitors.length,
+    });
+  } catch (error) {
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined ? (error.method = "addDemoMonitors") : null;
     next(error);
   }
 };
 
 module.exports = {
   getAllMonitors,
-  getMonitorAggregateStats,
   getMonitorStatsById,
   getMonitorCertificate,
   getMonitorById,
@@ -479,4 +541,5 @@ module.exports = {
   deleteAllMonitors,
   editMonitor,
   pauseMonitor,
+  addDemoMonitors,
 };

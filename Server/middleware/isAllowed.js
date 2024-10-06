@@ -27,7 +27,8 @@ const isAllowed = (allowedRoles) => {
     // Parse the token
     try {
       const parsedToken = token.slice(TOKEN_PREFIX.length, token.length);
-      var decoded = jwt.verify(parsedToken, process.env.JWT_SECRET);
+      const { jwtSecret } = req.settingsService.getSettings();
+      var decoded = jwt.verify(parsedToken, jwtSecret);
       const userRoles = decoded.role;
 
       // Check if the user has the required role
@@ -43,6 +44,7 @@ const isAllowed = (allowedRoles) => {
       }
     } catch (error) {
       error.status = 401;
+      error.method = "isAllowed";
       error.service = SERVICE_NAME;
       next(error);
       return;

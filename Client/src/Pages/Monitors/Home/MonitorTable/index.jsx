@@ -14,9 +14,10 @@ import {
   Button,
 } from "@mui/material";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
+import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 
 import { setRowsPerPage } from "../../../../Features/UI/uiSlice";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
 import { logger } from "../../../../Utils/Logger";
 import Host from "../host";
@@ -32,6 +33,7 @@ import LeftArrow from "../../../../assets/icons/left-arrow.svg?react";
 import RightArrow from "../../../../assets/icons/right-arrow.svg?react";
 import SelectorVertical from "../../../../assets/icons/selector-vertical.svg?react";
 import ActionsMenu from "../actionsMenu";
+import useUtils from "../../utils";
 
 /**
  * Component for pagination actions (first, previous, next, last).
@@ -47,7 +49,6 @@ import ActionsMenu from "../actionsMenu";
  */
 const TablePaginationActions = (props) => {
   const { count, page, rowsPerPage, onPageChange } = props;
-
   const handleFirstPageButtonClick = (event) => {
     onPageChange(event, 0);
   };
@@ -106,10 +107,11 @@ TablePaginationActions.propTypes = {
   onPageChange: PropTypes.func.isRequired,
 };
 
-const MonitorTable = ({ isAdmin }) => {
+const MonitorTable = ({ isAdmin, filter, setLoading }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { determineState } = useUtils();
 
   const { rowsPerPage } = useSelector((state) => state.ui.monitors);
   const [page, setPage] = useState(0);
@@ -117,6 +119,8 @@ const MonitorTable = ({ isAdmin }) => {
   const [monitorCount, setMonitorCount] = useState(0);
   const authState = useSelector((state) => state.auth);
   const [updateTrigger, setUpdateTrigger] = useState(false);
+  const [sort, setSort] = useState({});
+  const prevFilter = useRef(filter);
 
   const handleActionMenuDelete = () => {
     setUpdateTrigger((prev) => !prev);
@@ -136,30 +140,53 @@ const MonitorTable = ({ isAdmin }) => {
     setPage(0);
   };
 
+  const fetchPage = useCallback(async () => {
+    try {
+      const { authToken } = authState;
+      const user = jwtDecode(authToken);
+      const res = await networkService.getMonitorsByTeamId({
+        authToken,
+        teamId: user.teamId,
+        limit: 25,
+        types: ["http", "ping"],
+        status: null,
+        checkOrder: "desc",
+        normalize: true,
+        page: page,
+        rowsPerPage: rowsPerPage,
+        filter: filter,
+        field: sort.field,
+        order: sort.order,
+      });
+      setMonitors(res?.data?.data?.monitors ?? []);
+      setMonitorCount(res?.data?.data?.monitorCount ?? 0);
+      setLoading(false);
+    } catch (error) {
+      logger.error(error);
+    }
+  }, [authState, page, rowsPerPage, filter, sort, setLoading]);
+
   useEffect(() => {
-    const fetchPage = async () => {
-      try {
-        const { authToken } = authState;
-        const user = jwtDecode(authToken);
-        const res = await networkService.getMonitorsByTeamId(
-          authToken,
-          user.teamId,
-          25,
-          ["http", "ping"],
-          null,
-          "desc",
-          true,
-          page,
-          rowsPerPage
-        );
-        setMonitors(res?.data?.data?.monitors ?? []);
-        setMonitorCount(res?.data?.data?.monitorCount ?? 0);
-      } catch (error) {
-        logger.error(error);
-      }
-    };
     fetchPage();
-  }, [updateTrigger, authState, page, rowsPerPage]);
+  }, [
+    updateTrigger,
+    authState,
+    page,
+    rowsPerPage,
+    filter,
+    sort,
+    setLoading,
+    fetchPage,
+  ]);
+
+  // Listen for changes in filter, if new value reset the page
+  useEffect(() => {
+    if (prevFilter.current !== filter) {
+      setPage(0);
+      fetchPage();
+    }
+    prevFilter.current = filter;
+  }, [filter, fetchPage]);
 
   /**
    * Helper function to calculate the range of displayed rows.
@@ -171,19 +198,80 @@ const MonitorTable = ({ isAdmin }) => {
     return `${start} - ${end}`;
   };
 
+  const handleSort = async (field) => {
+    let order = "";
+    if (sort.field !== field) {
+      order = "desc";
+    } else {
+      order = sort.order === "asc" ? "desc" : "asc";
+    }
+    setSort({ field, order });
+
+    const { authToken } = authState;
+    const user = jwtDecode(authToken);
+
+    const res = await networkService.getMonitorsByTeamId({
+      authToken,
+      teamId: user.teamId,
+      limit: 25,
+      types: ["http", "ping"],
+      status: null,
+      checkOrder: "desc",
+      normalize: true,
+      page: page,
+      rowsPerPage: rowsPerPage,
+      filter: null,
+      field: field,
+      order: order,
+    });
+    setMonitors(res?.data?.data?.monitors ?? []);
+    setMonitorCount(res?.data?.data?.monitorCount ?? 0);
+  };
+
   return (
     <>
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Host</TableCell>
-              <TableCell>
+              <TableCell
+                sx={{ cursor: "pointer" }}
+                onClick={() => handleSort("name")}
+              >
+                <Box>
+                  Host
+                  <span
+                    style={{
+                      visibility: sort.field === "name" ? "visible" : "hidden",
+                    }}
+                  >
+                    {sort.order === "asc" ? (
+                      <ArrowUpwardRoundedIcon />
+                    ) : (
+                      <ArrowDownwardRoundedIcon />
+                    )}
+                  </span>
+                </Box>
+              </TableCell>
+              <TableCell
+                sx={{ cursor: "pointer" }}
+                onClick={() => handleSort("status")}
+              >
                 {" "}
                 <Box width="max-content">
+                  {" "}
                   Status
-                  <span>
-                    <ArrowDownwardRoundedIcon />
+                  <span
+                    style={{
+                      visibility:
+                        sort.field === "status" ? "visible" : "hidden",
+                    }}
+                  >
+                    {sort.order === "asc" ? (
+                      <ArrowUpwardRoundedIcon />
+                    ) : (
+                      <ArrowDownwardRoundedIcon />
+                    )}
                   </span>
                 </Box>
               </TableCell>
@@ -219,12 +307,7 @@ const MonitorTable = ({ isAdmin }) => {
                 title: monitor.name,
                 percentage: uptimePercentage,
                 percentageColor,
-                status:
-                  monitor.status === undefined
-                    ? "pending"
-                    : monitor.status === true
-                    ? "up"
-                    : "down",
+                status: determineState(monitor),
               };
 
               return (
@@ -276,13 +359,8 @@ const MonitorTable = ({ isAdmin }) => {
         alignItems="center"
         justifyContent="space-between"
         px={theme.spacing(4)}
-        sx={{
-          "& p": {
-            color: theme.palette.text.tertiary,
-          },
-        }}
       >
-        <Typography px={theme.spacing(2)} fontSize={12} sx={{ opacity: 0.7 }}>
+        <Typography px={theme.spacing(2)} variant="body2" sx={{ opacity: 0.7 }}>
           Showing {getRange()} of {monitorCount} monitor(s)
         </Typography>
         <TablePagination
@@ -348,6 +426,9 @@ const MonitorTable = ({ isAdmin }) => {
 
 MonitorTable.propTypes = {
   isAdmin: PropTypes.bool,
+  filter: PropTypes.string,
+  setLoading: PropTypes.func,
 };
 
-export default MonitorTable;
+const MemoizedMonitorTable = memo(MonitorTable);
+export default MemoizedMonitorTable;

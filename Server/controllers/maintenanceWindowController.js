@@ -5,8 +5,9 @@ const {
   getMaintenanceWindowsByMonitorIdParamValidation,
 } = require("../validation/joi");
 
+const {successMessages} = require("../utils/messages")
+
 const SERVICE_NAME = "maintenanceWindowController";
-const { errorMessages, successMessages } = require("../utils/messages");
 
 const createMaintenanceWindow = async (req, res, next) => {
   try {
@@ -39,7 +40,10 @@ const createMaintenanceWindow = async (req, res, next) => {
       data: maintenanceWindow,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined
+      ? (error.method = "createMaintenanceWindow")
+      : null;
     next(error);
   }
 };
@@ -64,11 +68,14 @@ const getMaintenanceWindowsByUserId = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      msg: successMessages.MAINTEANCE_WINDOW_GET_BY_USER,
+      msg: successMessages.MAINTENANCE_WINDOW_GET_BY_USER,
       data: maintenanceWindows,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined
+      ? (error.method = "getMaintenanceWindowsByUserId")
+      : null;
     next(error);
   }
 };
@@ -94,11 +101,14 @@ const getMaintenanceWindowsByMonitorId = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      msg: successMessages.MAINTEANCE_WINDOW_GET_BY_USER,
+      msg: successMessages.MAINTENANCE_WINDOW_GET_BY_USER,
       data: maintenanceWindows,
     });
   } catch (error) {
-    error.service = SERVICE_NAME;
+    error.service === undefined ? (error.service = SERVICE_NAME) : null;
+    error.method === undefined
+      ? (error.method = "getMaintenanceWindowsByMonitorId")
+      : null;
     next(error);
   }
 };

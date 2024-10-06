@@ -26,13 +26,16 @@ const verifySuperAdmin = (req, res, next) => {
     const error = new Error(errorMessages.INVALID_AUTH_TOKEN); // Instantiate a new Error object for improperly formatted token
     error.status = 400;
     error.service = SERVICE_NAME;
+    error.method = "verifySuperAdmin";
     next(error);
     return;
   }
 
   const parsedToken = token.slice(TOKEN_PREFIX.length, token.length);
   // verify admin role is present
-  jwt.verify(parsedToken, process.env.JWT_SECRET, (err, decoded) => {
+  const { jwtSecret } = req.settingsService.getSettings();
+
+  jwt.verify(parsedToken, jwtSecret, (err, decoded) => {
     if (err) {
       logger.error(errorMessages.INVALID_AUTH_TOKEN, {
         service: SERVICE_NAME,
